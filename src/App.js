@@ -1,18 +1,49 @@
 import { useEffect, useState } from "react";
+import Select from "react-select";
+import axios from "axios";
+import "./App.css";
+
+const TMDB_IMG = "https://image.tmdb.org/t/p/w500";
+const TMDB_API = process.env.REACT_APP_TMDB_API_KEY;
 
 function App() {
   const [movies, setMovies] = useState([]);
-  const [selectedMovie, setSelectedMovie] = useState("");
+  const [selectedMovie, setSelectedMovie] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [posters, setPosters] = useState({});
   const [error, setError] = useState("");
+  const API_BASE ='https://movie-recommendation-system-backend-5b9h.onrender.com'
 
-  // Fetch movie list on page load
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/movies")
-      .then((res) => res.json())
-      .then((data) => setMovies(data.movies))
+    axios.get(`${API_BASE}/movies`)
+      .then(res => {
+        const options = res.data.movies.map(m => ({
+          label: m,
+          value: m
+        }));
+        setMovies(options);
+      })
       .catch(() => setError("Failed to load movies"));
   }, []);
+
+  const fetchPoster = async (title) => {
+    try {
+      const res = await axios.get(
+        "https://api.themoviedb.org/3/search/movie",
+        {
+          params: {
+            api_key: TMDB_API,
+            query: title
+          }
+        }
+      );
+      return res.data.results[0]?.poster_path
+        ? TMDB_IMG + res.data.results[0].poster_path
+        : null;
+    } catch {
+      return null;
+    }
+  };
 
   const getRecommendations = async () => {
     if (!selectedMovie) {
@@ -24,51 +55,54 @@ function App() {
     setRecommendations([]);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/recommend", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ movie: selectedMovie })
-      });
+      const res = await axios.post(
+        `${API_BASE}/recommend`,
+        { movie: selectedMovie.value }
+      );
 
-      const data = await response.json();
-      setRecommendations(data.recommended_movies);
+      const recs = res.data.recommended_movies;
+      setRecommendations(recs);
+
+      const posterData = {};
+      for (let movie of recs) {
+        posterData[movie] = await fetchPoster(movie);
+      }
+      setPosters(posterData);
     } catch {
-      setError("Something went wrong");
+      setError("Recommendation failed");
     }
   };
 
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
-      <h1>🎬 Movie Recommendation System</h1>
+    <div className="app">
+      <h1 className="title">🎬 Movie Recommendation System</h1>
 
-      <select
-        value={selectedMovie}
-        onChange={(e) => setSelectedMovie(e.target.value)}
-        style={{ padding: "10px", width: "320px" }}
-      >
-        <option value="">-- Select a movie --</option>
-        {movies.map((movie, index) => (
-          <option key={index} value={movie}>
-            {movie}
-          </option>
-        ))}
-      </select>
+      <div className="select-box">
+        <Select
+          options={movies}
+          onChange={setSelectedMovie}
+          placeholder="Search and select a movie..."
+        />
+      </div>
 
-      <br /><br />
-
-      <button onClick={getRecommendations} style={{ padding: "10px 20px" }}>
+      <button className="btn" onClick={getRecommendations}>
         Recommend
       </button>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p className="error">{error}</p>}
 
-      <ul>
-        {recommendations.map((m, index) => (
-          <li key={index}>{m}</li>
+      <div className="movie-grid">
+        {recommendations.map((movie, index) => (
+          <div key={index} className="movie-card">
+            {posters[movie] ? (
+              <img src={posters[movie]} alt={movie} />
+            ) : (
+              <div className="no-poster">No Poster</div>
+            )}
+            <p>{movie}</p>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
