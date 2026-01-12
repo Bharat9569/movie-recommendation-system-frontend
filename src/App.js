@@ -14,6 +14,23 @@ function App() {
   const [error, setError] = useState("");
   const API_BASE ='https://movie-recommendation-system-backend-5b9h.onrender.com'
 
+  const customStyles = {
+  control: (base) => ({
+    ...base,
+    backgroundColor: "#fff",
+    color: "#000",
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: "#fff",
+  }),
+  option: (base, state) => ({
+    ...base,
+    color: "#000",
+    backgroundColor: state.isFocused ? "#eee" : "#fff",
+  }),
+};
+
   useEffect(() => {
     axios.get(`${API_BASE}/movies`)
       .then(res => {
@@ -78,7 +95,7 @@ function App() {
       <h1 className="title">🎬 Movie Recommendation System</h1>
 
       <div className="select-box">
-        <Select
+        <Select styles={customStyles}
           options={movies}
           onChange={setSelectedMovie}
           placeholder="Search and select a movie..."
